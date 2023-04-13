@@ -77,6 +77,10 @@ namespace Trackbox.Areas.Identity.Pages.Account
         /// </summary>
         public class InputModel
         {
+            [Required]
+            [Display(Name = "Username")]
+            public string Username { get; set; }
+
             /// <summary>
             ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
             ///     directly from your code. This API may change or be removed in future releases.
@@ -85,7 +89,7 @@ namespace Trackbox.Areas.Identity.Pages.Account
             [EmailAddress]
             public string Email { get; set; }
         }
-        
+
         public IActionResult OnGet() => RedirectToPage("./Login");
 
         public IActionResult OnPost(string provider, string returnUrl = null)
@@ -124,6 +128,14 @@ namespace Trackbox.Areas.Identity.Pages.Account
             }
             else
             {
+                // If there is a user already with this email.
+                var email = _userManager.FindByEmailAsync(info.Principal.FindFirstValue(ClaimTypes.Email));
+                if (email.Result != null)
+                {
+                    ErrorMessage = "Email already exists as a local user, or the email still requires verification.";
+                    return RedirectToPage("./Login", new { ReturnUrl = returnUrl });
+                }
+
                 // If the user does not have an account, then ask the user to create an account.
                 ReturnUrl = returnUrl;
                 ProviderDisplayName = info.ProviderDisplayName;
@@ -131,6 +143,7 @@ namespace Trackbox.Areas.Identity.Pages.Account
                 {
                     Input = new InputModel
                     {
+                        Username = info.Principal.FindFirstValue(ClaimTypes.Name),
                         Email = info.Principal.FindFirstValue(ClaimTypes.Email)
                     };
                 }
@@ -153,7 +166,7 @@ namespace Trackbox.Areas.Identity.Pages.Account
             {
                 var user = CreateUser();
 
-                await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+                await _userStore.SetUserNameAsync(user, Input.Username, CancellationToken.None);
                 await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
 
                 var result = await _userManager.CreateAsync(user);
@@ -174,7 +187,7 @@ namespace Trackbox.Areas.Identity.Pages.Account
                             protocol: Request.Scheme);
 
                         await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                            $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                            $"Please confirm your account by clicking <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>here</a>.");
 
                         // If account confirmation is required, we need to show the link if we don't have a real email sender
                         if (_userManager.Options.SignIn.RequireConfirmedAccount)

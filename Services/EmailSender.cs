@@ -12,11 +12,9 @@ public class EmailSender : IEmailSender
             Credentials = new NetworkCredential("noreply.trackbox@gmail.com", "nkhzbcregqiwwolu")
         };
 
-        return client.SendMailAsync(
-            new MailMessage(from: "noreply.trackbox@gmail.com",
-                            to: email,
-                            subject,
-                            message
-                            ));
+        var mail = new MailMessage(from: "noreply.trackbox@gmail.com", to: email, subject, message);
+        mail.IsBodyHtml = true;
+
+        return client.SendMailAsync(mail);
     }
 }
