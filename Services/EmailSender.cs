@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Mail;
+using Trackbox.Services;
 
 public class EmailSender : IEmailSender
 {
@@ -9,7 +10,7 @@ public class EmailSender : IEmailSender
         {
             EnableSsl = true,
             UseDefaultCredentials = false,
-            Credentials = new NetworkCredential("noreply.trackbox@gmail.com", "nkhzbcregqiwwolu")
+            Credentials = new NetworkCredential("noreply.trackbox@gmail.com", Util.EmailPassword)
         };
 
         var mail = new MailMessage(from: "noreply.trackbox@gmail.com", to: email, subject, message);

@@ -7,7 +7,12 @@ using Trackbox.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("LoginString") ?? throw new InvalidOperationException("Connection string 'LoginString' not found.");
+#if DEBUG
+var loginString = "LoginStringDebug";
+#else
+var loginString = "LoginString";
+#endif
+var connectionString = builder.Configuration.GetConnectionString(loginString) ?? throw new InvalidOperationException($"Connection string '{loginString}' not found.");
 builder.Services.AddDbContext<LoginDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -17,6 +22,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     options.SignIn.RequireConfirmedAccount = true;
     options.SignIn.RequireConfirmedEmail = true;
 })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<LoginDbContext>();
 builder.Services.AddRazorPages();
 
@@ -35,7 +41,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireLowercase = true;
     options.Password.RequireNonAlphanumeric = true;
     options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
     options.Password.RequiredUniqueChars = 1;
 
     // Lockout settings.
@@ -55,7 +61,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     // Cookie settings
     options.Cookie.HttpOnly = true;
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
 
     options.LoginPath = "/Identity/Account/Login";
     options.AccessDeniedPath = "/Identity/Account/AccessDenied";
@@ -85,5 +91,25 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    var roles = new[] { "Admin", "Moderator", "User" };
+
+    foreach (var role in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole(role));
+        }
+    }
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+
+    var adminUser = await userManager.FindByEmailAsync("admin@brawlbox.co.uk");
+    await userManager.AddToRoleAsync(adminUser, "Admin");
+}
 
 app.Run();
